@@ -24,19 +24,16 @@ type Lesson struct {
 	LessonId string
 }
 
-func main() {
-
+func initConf() {
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
 	viper.AutomaticEnv()
 	if err := viper.ReadInConfig(); err != nil {
 		fmt.Printf("Error reading config file, %s", err)
 	}
+}
 
-	theValue := viper.GetString("SESSION_URL")
-	fmt.Println("the value is", theValue)
-
-	// fmt.Println("Hello World 2")
+func connectDb() {
 	// // Set client options
 	// clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
 
@@ -55,4 +52,11 @@ func main() {
 	// }
 
 	// fmt.Println("Connected to MongoDB!")
+}
+
+func main() {
+	initConf()
+	connectDb()
+	theValue := viper.GetString("SESSION_URL")
+	fmt.Println("the value is", theValue)
 }
