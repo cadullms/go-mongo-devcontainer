@@ -1,0 +1,18 @@
+version: '3.1'
+services:
+  devcontainer:
+    build:
+      context: .
+    environment: 
+      MONGO_URL: "mongodb://db:27017"
+    command: /bin/sh -c "while sleep 1000; do :; done"
+    volumes:
+      # Mount the root folder that contains .git
+      - ..:/workspace
+      # [Optional] For reusing Git SSH keys.
+      - ~/.ssh:/root/.ssh-local:ro
+  db:
+    image: mongo:4.2.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example

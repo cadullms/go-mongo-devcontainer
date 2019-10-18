@@ -1,6 +1,9 @@
 {
-    "name": "Go Test",
-    "dockerFile": "Dockerfile",
+    "name": "Go with Mongo",
+    //"dockerFile": "Dockerfile",
+    "dockerComposeFile": "docker-compose.yaml",
+    "service": "devcontainer",
+    "workspaceFolder": "/workspace",
 
     // Specifies a list of ports that should be published.
     //"appPort": [3000],

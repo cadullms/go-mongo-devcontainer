@@ -4,13 +4,13 @@ package main
 // https://www.mongodb.com/blog/post/mongodb-go-driver-tutorial
 
 import (
-	// "context"
+	"context"
 	"fmt"
-	// "log"
+	"log"
 
 	// "go.mongodb.org/mongo-driver/bson"
-	// "go.mongodb.org/mongo-driver/mongo"
-	// "go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/spf13/viper"
 )
@@ -29,34 +29,35 @@ func initConf() {
 	viper.AddConfigPath(".")
 	viper.AutomaticEnv()
 	if err := viper.ReadInConfig(); err != nil {
-		fmt.Printf("Error reading config file, %s", err)
+		fmt.Println("Unable to load config from file.", err, "All config from env vars now.")
 	}
 }
 
-func connectDb() {
-	// // Set client options
-	// clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
+func connectDb(mongoUrl string) {
+	// Set client options
+	clientOptions := options.Client().ApplyURI(mongoUrl)
 
-	// // Connect to MongoDB
-	// client, err := mongo.Connect(context.TODO(), clientOptions)
+	// Connect to MongoDB
+	client, err := mongo.Connect(context.TODO(), clientOptions)
 
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// // Check the connection
-	// err = client.Ping(context.TODO(), nil)
+	// Check the connection
+	err = client.Ping(context.TODO(), nil)
 
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// fmt.Println("Connected to MongoDB!")
+	fmt.Println("Connected to MongoDB!")
 }
 
 func main() {
+	fmt.Println("Starting...")
 	initConf()
-	connectDb()
-	theValue := viper.GetString("SESSION_URL")
-	fmt.Println("the value is", theValue)
+	mongoUrl := viper.GetString("MONGO_URL")
+	connectDb(mongoUrl)
+	fmt.Println("Mongo url is", mongoUrl)
 }
