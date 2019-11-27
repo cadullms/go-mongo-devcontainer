@@ -4,6 +4,7 @@ package main
 // https://www.mongodb.com/blog/post/mongodb-go-driver-tutorial
 
 import (
+	// "os"
 	"context"
 	"fmt"
 	"log"
@@ -15,7 +16,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Session struct {
+type Attempt struct {
 	UserId   string
 	LessonId string
 }
@@ -33,31 +34,43 @@ func initConf() {
 	}
 }
 
-func connectDb(mongoUrl string) {
+func connectDb(mongoUrl string) (*mongo.Client) {
 	// Set client options
 	clientOptions := options.Client().ApplyURI(mongoUrl)
-
 	// Connect to MongoDB
 	client, err := mongo.Connect(context.TODO(), clientOptions)
-
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err) // ends the program
 	}
 
 	// Check the connection
 	err = client.Ping(context.TODO(), nil)
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println("Connected to MongoDB!")
+	return client
 }
 
 func main() {
 	fmt.Println("Starting...")
 	initConf()
 	mongoUrl := viper.GetString("MONGO_URL")
-	connectDb(mongoUrl)
 	fmt.Println("Mongo url is", mongoUrl)
+	client := connectDb(mongoUrl)
+	collection := client.Database("test").Collection("attempts")
+
+	attempt1 := Attempt{"user1","lesson1"}
+	attempt2 := Attempt{"user1","lesson2"}
+
+	collection.InsertOne(context.TODO(), attempt1)
+	collection.InsertOne(context.TODO(), attempt2)
+	fmt.Println("Inserted two docs")
+	
+	err := client.Disconnect(context.TODO())
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }

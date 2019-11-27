@@ -1,2 +1,1 @@
-
-SESSION_URL: "mongodb://somewhere:27017"
+MONGO_URL: "mongodb://db:27017"

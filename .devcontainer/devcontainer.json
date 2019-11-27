@@ -23,5 +23,6 @@
 
     "extensions": [
     //    "dbaeumer.vscode-eslint"
+        "ms-vscode.go"
     ]
 }
