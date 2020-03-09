@@ -31,12 +31,16 @@ type Lesson struct {
 }
 
 func initConf() {
-	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
-	viper.AutomaticEnv()
-	if err := viper.ReadInConfig(); err != nil {
+	viper.SetConfigName("config")
+	if err := viper.MergeInConfig(); err != nil {
 		fmt.Println("Unable to load config from file.", err, "All config from env vars now.")
 	}
+	viper.SetConfigName("secrets")
+	if err := viper.MergeInConfig(); err != nil {
+		fmt.Println("Unable to load secrets from file.", err, "All secrets from env vars now.")
+	}
+	viper.AutomaticEnv()
 }
 
 func connectDb(mongoUrl string) *mongo.Client {
@@ -59,17 +63,13 @@ func connectDb(mongoUrl string) *mongo.Client {
 }
 
 func getToken() string {
-	tenantId := "49c22610-756e-4632-a268-0712e0fc1ef5"
-	clientId := "b97356b1-23db-4ecc-b977-81b25ee0657f"
-	clientSecret := ""
-	targetResourceAppId := "42bdba43-a7fe-4c9c-a2d4-44857edee58e"
 	form := url.Values{}
 	form.Add("grant_type", "client_credentials")
-	form.Add("client_secret", clientSecret)
-	form.Add("client_id", clientId)
-	form.Add("resource", targetResourceAppId)
+	form.Add("client_secret", viper.GetString("CLIENT_SECRET"))
+	form.Add("client_id", viper.GetString("CLIENT_ID"))
+	form.Add("resource", viper.GetString("TARGET_RESOURCE_APP_ID"))
 	body := strings.NewReader(form.Encode())
-	response, _ := http.Post("https://login.microsoftonline.com/"+tenantId+"/oauth2/token", "application/x-www-form-urlencoded", body)
+	response, _ := http.Post("https://login.microsoftonline.com/" + viper.GetString("TENANT_ID") + "/oauth2/token", "application/x-www-form-urlencoded", body)
 	rawResult, _ := ioutil.ReadAll(response.Body)
 	stringResult := string(rawResult)
 	//var result map[string]interface{}
