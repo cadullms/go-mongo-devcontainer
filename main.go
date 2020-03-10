@@ -4,7 +4,7 @@ package main
 // https://www.mongodb.com/blog/post/mongodb-go-driver-tutorial
 
 import (
-	// "os"
+	"os"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"errors"
 
 	// "go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -43,23 +44,25 @@ func initConf() {
 	viper.AutomaticEnv()
 }
 
-func connectDb(mongoUrl string) *mongo.Client {
-	// Set client options
+func crashIt(err error) {
+	log.Println(err) 
+	os.Exit(1) // Note: Some debuggers still claim the process exited with code 0 after this. Try with go run or with the compiled version to verify non zero exit code!
+}
+
+func connectDb(mongoUrl string) (*mongo.Client, error) {
 	clientOptions := options.Client().ApplyURI(mongoUrl)
-	// Connect to MongoDB
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
-		log.Fatal(err) // ends the program
+		return nil, err
 	}
 
-	// Check the connection
 	err = client.Ping(context.TODO(), nil)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	fmt.Println("Connected to MongoDB!")
-	return client
+	return client, nil
 }
 
 func getToken() (string, error) {
@@ -110,6 +113,10 @@ func get(url string) ([]byte, error) {
 		return nil, err
 	}
 
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, errors.New("Call to url " + url + " resulted in " + response.Status + ".")
+	}
+
 	rawResult, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
@@ -157,20 +164,21 @@ func main() {
 	lessons, err := getLessons()
 	fmt.Println("Got ", len(lessons), " lessons.")
 	if err != nil {
-		log.Fatal(err)
+		crashIt(err)
 	}
 
 	attempts, err := getAttempts()
-	fmt.Println("Got ", len(attempts), " attempts.")
 	if err != nil {
-		log.Fatal(err)
+		crashIt(err)
+	}
+	fmt.Println("Got ", len(attempts), " attempts.")
+	
+	mongoUrl := viper.GetString("MONGO_URL")
+	client, err := connectDb(mongoUrl)
+	if err!= nil {
+		crashIt(err)
 	}
 
-	fmt.Println()
-
-	mongoUrl := viper.GetString("MONGO_URL")
-	fmt.Println("Mongo url is", mongoUrl)
-	client := connectDb(mongoUrl)
 	collection := client.Database("test").Collection("attempts")
 
 	attempt1 := Attempt{"user1", "lesson1"}
@@ -182,6 +190,6 @@ func main() {
 
 	err = client.Disconnect(context.TODO())
 	if err != nil {
-		log.Fatal(err)
+		crashIt(err)
 	}
 }
