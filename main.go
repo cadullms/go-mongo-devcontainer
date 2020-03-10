@@ -62,38 +62,111 @@ func connectDb(mongoUrl string) *mongo.Client {
 	return client
 }
 
-func getToken() string {
+func getToken() (string, error) {
 	form := url.Values{}
 	form.Add("grant_type", "client_credentials")
 	form.Add("client_secret", viper.GetString("CLIENT_SECRET"))
 	form.Add("client_id", viper.GetString("CLIENT_ID"))
 	form.Add("resource", viper.GetString("TARGET_RESOURCE_APP_ID"))
 	body := strings.NewReader(form.Encode())
-	response, _ := http.Post("https://login.microsoftonline.com/" + viper.GetString("TENANT_ID") + "/oauth2/token", "application/x-www-form-urlencoded", body)
-	rawResult, _ := ioutil.ReadAll(response.Body)
+	response, httperr := http.Post("https://login.microsoftonline.com/"+viper.GetString("TENANT_ID")+"/oauth2/token", "application/x-www-form-urlencoded", body)
+	if httperr != nil {
+		return "", httperr
+	}
+
+	rawResult, ioerr := ioutil.ReadAll(response.Body)
+	if ioerr != nil {
+		return "", ioerr
+	}
+
 	stringResult := string(rawResult)
 	//var result map[string]interface{}
 	var result map[string]string
-	json.Unmarshal([]byte(stringResult), &result)
-	return result["access_token"]
+	jsonerror := json.Unmarshal([]byte(stringResult), &result)
+	if jsonerror != nil {
+		return "", jsonerror
+	}
+
+	return result["access_token"], nil
 }
 
-func getLessons() string {
-	token := getToken()
+func get(url string) ([]byte, error) {
+	
+	var err error
+	token, err := getToken()
+	if err != nil {
+		return nil, err
+	}
+
 	client := http.Client{}
-	request, _ := http.NewRequest("GET", "https://ninaapp.carstenduellmann.de/api/lessons", nil)
-	request.Header.Add("Authorization", "Bearer "+token)
-	response, _ := client.Do(request)
-	rawResult, _ := ioutil.ReadAll(response.Body)
-	stringResult := string(rawResult)
-	return stringResult
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Add("Authorization", "Bearer " + token)
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	rawResult, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return rawResult, nil
+}
+
+func getLessons() ([]Lesson, error) {
+	url := viper.GetString("API_BASE_URL") + "api/lessons"
+	rawResult, err := get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	var lessons []Lesson
+	err = json.Unmarshal(rawResult, &lessons)
+	if err != nil {
+		return nil, err
+	}
+
+	return lessons, nil
+}
+
+func getAttempts() ([]Attempt, error) {
+	url := viper.GetString("API_BASE_URL") + "session/attempts"
+	rawResult, err := get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	var attempts []Attempt
+	err = json.Unmarshal(rawResult, &attempts)
+	if err != nil {
+		return nil, err
+	}
+
+	return attempts, nil
 }
 
 func main() {
 	fmt.Println("Starting...")
 	initConf()
 
-	fmt.Println(getLessons())
+	lessons, err := getLessons()
+	fmt.Println("Got ", len(lessons), " lessons.")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	attempts, err := getAttempts()
+	fmt.Println("Got ", len(attempts), " attempts.")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println()
 
 	mongoUrl := viper.GetString("MONGO_URL")
 	fmt.Println("Mongo url is", mongoUrl)
@@ -107,9 +180,8 @@ func main() {
 	collection.InsertOne(context.TODO(), attempt2)
 	fmt.Println("Inserted two docs")
 
-	err := client.Disconnect(context.TODO())
+	err = client.Disconnect(context.TODO())
 	if err != nil {
 		log.Fatal(err)
 	}
-
 }
