@@ -142,7 +142,7 @@ func getLessons() ([]Lesson, error) {
 }
 
 func getAttempts() ([]Attempt, error) {
-	url := viper.GetString("API_BASE_URL") + "session/attempts"
+	url := viper.GetString("API_BASE_URL") + "session/attempts/all"
 	rawResult, err := get(url)
 	if err != nil {
 		return nil, err
