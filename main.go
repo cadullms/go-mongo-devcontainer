@@ -17,7 +17,7 @@ import (
 
 	"dev.azure.com/go-mongo/model"
 
-	// "go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
@@ -151,6 +151,18 @@ func getAttempts() ([]model.Attempt, error) {
 	return attempts, nil
 }
 
+func getDistinctUserIds(attempts []model.Attempt) []string {
+	userIdMap := make(map[string]string)
+	for _, attempt := range attempts {
+		userIdMap[attempt.UserId] = attempt.UserId
+	}
+	distinctUserIds := make([]string, 0, len(userIdMap))
+	for _, userId := range userIdMap {
+		distinctUserIds = append(distinctUserIds, userId)
+	}
+	return distinctUserIds
+}
+
 func main() {
 	fmt.Println("Starting...")
 	initConf()
@@ -167,10 +179,20 @@ func main() {
 	}
 	fmt.Println("Got ", len(attempts), " attempts.")
 
-    // TODO: get all user ids and/or filter attempts on this user
+	// TODO: Parameterize this to support use cases for single lesson/user
+	distinctUserIds := getDistinctUserIds(attempts)
 
-	for _, lesson := range lessons {
-		model.ScoreAttemptsForLesson(&lesson, "live.com#cadull@hotmail.de", &attempts)
+	var lessonStatisticsList []interface{}
+	var exerciseStatisticsList []interface{}
+	for _, userId := range distinctUserIds {
+		for _, lesson := range lessons {
+			lstats, estats := model.ScoreAttemptsForLesson(&lesson, userId, &attempts)
+			lessonStatisticsList = append(lessonStatisticsList, lstats)
+			// see https://golang.org/doc/faq#convert_slice_of_interface
+			for _, estat := range estats {
+				exerciseStatisticsList = append(exerciseStatisticsList, estat)
+			}
+		}
 	}
 
 	client, err := connectDb()
@@ -178,15 +200,30 @@ func main() {
 		crashIt(err)
 	}
 
-	db := client.Database("test")
-	collection := db.Collection("lessons")
-
-	_, err = collection.InsertOne(context.TODO(), lessons[0])
+	db := client.Database("stats")
+	lstatsCollection := db.Collection("lessonStatistics")
+	_, err = lstatsCollection.DeleteMany(context.TODO(), bson.M{}) //Delete All
+	if err != nil {
+		crashIt(err)
+	}
+	
+	_, err = lstatsCollection.InsertMany(context.TODO(), lessonStatisticsList)
 	if err != nil {
 		crashIt(err)
 	}
 
-	fmt.Println("Inserted.")
+	estatsCollection := db.Collection("exerciseStatistics")
+	_, err = estatsCollection.DeleteMany(context.TODO(), bson.M{}) //Delete All
+	if err != nil {
+		crashIt(err)
+	}
+	
+	_, err = estatsCollection.InsertMany(context.TODO(), exerciseStatisticsList)
+	if err != nil {
+		crashIt(err)
+	}
+
+	fmt.Println("Inserted stats.")
 
 	err = client.Disconnect(context.TODO())
 	if err != nil {
