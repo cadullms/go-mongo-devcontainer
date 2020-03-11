@@ -1,7 +1,7 @@
-package model 
+package model
 
 type Lesson struct {
-	id string
-	name string
-	exercises []Exercise
+	Id string `json:"id"`
+	Name string `json:"name"`
+	Exercises []Exercise `json:"exercises"`
 }

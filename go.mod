@@ -1,4 +1,4 @@
-module dev.azure.com/cadullms/GoPlayground/_git/go-mongo
+module dev.azure.com/go-mongo
 
 go 1.13
 

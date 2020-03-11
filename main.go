@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strings"
 	"errors"
+	"dev.azure.com/go-mongo/model"
 
 	// "go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -21,15 +22,6 @@ import (
 
 	"github.com/spf13/viper"
 )
-
-type Attempt struct {
-	UserId   string
-	LessonId string
-}
-
-type Lesson struct {
-	LessonId string
-}
 
 func initConf() {
 	viper.AddConfigPath(".")
@@ -125,14 +117,14 @@ func get(url string) ([]byte, error) {
 	return rawResult, nil
 }
 
-func getLessons() ([]Lesson, error) {
+func getLessons() ([]model.Lesson, error) {
 	url := viper.GetString("API_BASE_URL") + "api/lessons"
 	rawResult, err := get(url)
 	if err != nil {
 		return nil, err
 	}
 
-	var lessons []Lesson
+	var lessons []model.Lesson
 	err = json.Unmarshal(rawResult, &lessons)
 	if err != nil {
 		return nil, err
@@ -141,14 +133,14 @@ func getLessons() ([]Lesson, error) {
 	return lessons, nil
 }
 
-func getAttempts() ([]Attempt, error) {
+func getAttempts() ([]model.Attempt, error) {
 	url := viper.GetString("API_BASE_URL") + "session/attempts/all"
 	rawResult, err := get(url)
 	if err != nil {
 		return nil, err
 	}
 
-	var attempts []Attempt
+	var attempts []model.Attempt
 	err = json.Unmarshal(rawResult, &attempts)
 	if err != nil {
 		return nil, err
@@ -181,11 +173,9 @@ func main() {
 
 	collection := client.Database("test").Collection("attempts")
 
-	attempt1 := Attempt{"user1", "lesson1"}
-	attempt2 := Attempt{"user1", "lesson2"}
+	collection.InsertOne(context.TODO(), attempts[0])
+	collection.InsertOne(context.TODO(), attempts[1])
 
-	collection.InsertOne(context.TODO(), attempt1)
-	collection.InsertOne(context.TODO(), attempt2)
 	fmt.Println("Inserted two docs")
 
 	err = client.Disconnect(context.TODO())
