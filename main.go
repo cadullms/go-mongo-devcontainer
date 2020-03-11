@@ -4,16 +4,17 @@ package main
 // https://www.mongodb.com/blog/post/mongodb-go-driver-tutorial
 
 import (
-	"os"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
-	"errors"
+
 	"dev.azure.com/go-mongo/model"
 
 	// "go.mongodb.org/mongo-driver/bson"
@@ -37,11 +38,12 @@ func initConf() {
 }
 
 func crashIt(err error) {
-	log.Println(err) 
+	log.Println(err)
 	os.Exit(1) // Note: Some debuggers still claim the process exited with code 0 after this. Try with go run or with the compiled version to verify non zero exit code!
 }
 
-func connectDb(mongoUrl string) (*mongo.Client, error) {
+func connectDb() (*mongo.Client, error) {
+	mongoUrl := viper.GetString("MONGO_URL")
 	clientOptions := options.Client().ApplyURI(mongoUrl)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
@@ -86,7 +88,7 @@ func getToken() (string, error) {
 }
 
 func get(url string) ([]byte, error) {
-	
+
 	var err error
 	token, err := getToken()
 	if err != nil {
@@ -99,7 +101,7 @@ func get(url string) ([]byte, error) {
 		return nil, err
 	}
 
-	request.Header.Add("Authorization", "Bearer " + token)
+	request.Header.Add("Authorization", "Bearer "+token)
 	response, err := client.Do(request)
 	if err != nil {
 		return nil, err
@@ -154,29 +156,37 @@ func main() {
 	initConf()
 
 	lessons, err := getLessons()
-	fmt.Println("Got ", len(lessons), " lessons.")
 	if err != nil {
 		crashIt(err)
 	}
+	fmt.Println("Got ", len(lessons), " lessons.")
 
 	attempts, err := getAttempts()
 	if err != nil {
 		crashIt(err)
 	}
 	fmt.Println("Got ", len(attempts), " attempts.")
-	
-	mongoUrl := viper.GetString("MONGO_URL")
-	client, err := connectDb(mongoUrl)
-	if err!= nil {
+
+    // TODO: get all user ids and/or filter attempts on this user
+
+	for _, lesson := range lessons {
+		model.ScoreAttemptsForLesson(&lesson, "live.com#cadull@hotmail.de", &attempts)
+	}
+
+	client, err := connectDb()
+	if err != nil {
 		crashIt(err)
 	}
 
-	collection := client.Database("test").Collection("attempts")
+	db := client.Database("test")
+	collection := db.Collection("lessons")
 
-	collection.InsertOne(context.TODO(), attempts[0])
-	collection.InsertOne(context.TODO(), attempts[1])
+	_, err = collection.InsertOne(context.TODO(), lessons[0])
+	if err != nil {
+		crashIt(err)
+	}
 
-	fmt.Println("Inserted two docs")
+	fmt.Println("Inserted.")
 
 	err = client.Disconnect(context.TODO())
 	if err != nil {
